@@ -123,7 +123,9 @@ def divider(margin="24px 0"):
 # PDF GENERATOR
 # ─────────────────────────────────────────────
 
-def generate_pdf(inp, score, inv_needed, max_cap, target_cap, fn, fi_age, survives, gap):
+def generate_pdf(inp, score, inv_needed, max_cap, target_cap, fn, fi_age, survives, gap,
+                 mc_prob=None, coast_age=None, contrib_pct=None, returns_pct=None,
+                 total_contrib=None, total_returns=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -486,6 +488,57 @@ def generate_pdf(inp, score, inv_needed, max_cap, target_cap, fn, fi_age, surviv
         ]))
         story.append(t_ins)
         story.append(Spacer(1, 5))
+
+    # ── PRO SECTIONS ──
+    if mc_prob is not None:
+        story.append(PageBreak())
+        story.append(Paragraph("05 — Pro Analysis", sty_h1))
+        story.append(HRFlowable(width=W, color=C_PURPLE_D, thickness=0.5, spaceAfter=14))
+
+        story.append(Paragraph("Monte Carlo Simulation", h2))
+        mc_color_pdf = colors.HexColor("#7F77DD") if mc_prob >= 70 else colors.HexColor("#EF9F27") if mc_prob >= 50 else colors.HexColor("#E24B4A")
+        mc_row = [[
+            Paragraph(f'<font size="40"><b>{mc_prob}%</b></font><br/><font size="9" color="#71717A">success rate</font>',
+                      ps("mc_n", fontName="Helvetica-Bold", fontSize=40, textColor=mc_color_pdf, leading=46, alignment=TA_CENTER)),
+            Paragraph(
+                f"Based on 1,000 simulations with randomised annual returns, your plan has a <b>{mc_prob}% probability</b> of "
+                f"sustaining €{inp.get('monthly_income',0):,}/month for {inp.get('years_retirement',25)} years. "
+                f"{'Strong result.' if mc_prob >= 70 else 'Consider increasing contributions.' if mc_prob >= 50 else 'Significant adjustments recommended.'}",
+                body
+            )
+        ]]
+        t_mc = Table(mc_row, colWidths=[W*0.2, W*0.8])
+        t_mc.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('BACKGROUND',(0,0),(-1,-1),dark),
+                                   ('LEFTPADDING',(0,0),(-1,-1),12),('RIGHTPADDING',(0,0),(-1,-1),12),
+                                   ('TOPPADDING',(0,0),(-1,-1),12),('BOTTOMPADDING',(0,0),(-1,-1),12)]))
+        story.append(t_mc)
+        story.append(Spacer(1, 14))
+
+        if contrib_pct is not None:
+            story.append(Paragraph("Portfolio Breakdown — Contributions vs Returns", h2))
+            bd_row = [[
+                Paragraph(f'YOUR CONTRIBUTIONS<br/><font size="18"><b>€{total_contrib:,}</b></font><br/><font size="9" color="#71717A">{contrib_pct}% of final portfolio</font>',
+                          ps("b1", fontName="Helvetica", fontSize=9, textColor=colors.HexColor("#AFA9EC"), leading=20)),
+                Paragraph(f'MARKET RETURNS<br/><font size="18"><b>€{total_returns:,}</b></font><br/><font size="9" color="#71717A">{returns_pct}% of final portfolio</font>',
+                          ps("b2", fontName="Helvetica", fontSize=9, textColor=colors.HexColor("#7F77DD"), leading=20))
+            ]]
+            t_bd = Table(bd_row, colWidths=[W/2, W/2])
+            t_bd.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),dark),
+                                       ('LEFTPADDING',(0,0),(-1,-1),14),('RIGHTPADDING',(0,0),(-1,-1),14),
+                                       ('TOPPADDING',(0,0),(-1,-1),12),('BOTTOMPADDING',(0,0),(-1,-1),12),
+                                       ('LINEAFTER',(0,0),(0,-1),0.5,C_LINE)]))
+            story.append(t_bd)
+            story.append(Spacer(1, 14))
+
+        if coast_age:
+            story.append(Paragraph("Coast FI", h2))
+            story.append(Paragraph(
+                f"You reach Coast FI at approximately age <b>{coast_age}</b>. At that point you could stop all contributions "
+                f"and compounding alone would grow your portfolio to €{int(fn):,} by retirement, "
+                f"without investing another euro.",
+                body
+            ))
+            story.append(Spacer(1, 10))
 
     story.append(PageBreak())
 
@@ -1364,9 +1417,18 @@ elif st.session_state.step == 4:
 
         st.markdown(divider("24px 0"), unsafe_allow_html=True)
 
-        # ── SEQUENCE OF RETURNS RISK ──
-        st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">⚠️ Sequence of returns risk</div>', unsafe_allow_html=True)
-        st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:14px'>What happens to your retirement if markets crash in your first years of withdrawal. The most dangerous scenario for a retiree.</div>", unsafe_allow_html=True)
+        # ── RETIREMENT STRESS TEST ──
+        st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">🧪 Retirement stress test</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="font-size:13px;color:#71717A;margin-bottom:6px">
+          One of the biggest risks for retirees is a market downturn in the first years of withdrawal.
+          Unlike during accumulation, early losses cannot be recovered by future contributions.
+          This test shows how a market drop at different points in your retirement affects your portfolio.
+        </div>
+        <div style="font-size:12px;color:#3f3f46;margin-bottom:16px">
+          Adjust the sliders to simulate different scenarios and see whether your plan survives.
+        </div>
+        """, unsafe_allow_html=True)
 
         def simulate_with_crash(monthly_inv, monthly_inc, years_acc, years_ret, ann_return, crash_pct, crash_year):
             capital, history, mr = 0, [], ann_return / 12
@@ -1374,8 +1436,8 @@ elif st.session_state.step == 4:
                 capital = capital * (1 + mr) + monthly_inv
                 history.append(capital)
             for m in range(years_ret * 12):
-                yr = m // 12
-                if yr == crash_year:
+                y = m // 12
+                if y == crash_year:
                     capital *= (1 - crash_pct)
                 capital = capital * (1 + mr) - monthly_inc
                 history.append(max(capital, 0))
@@ -1384,11 +1446,11 @@ elif st.session_state.step == 4:
 
         col_sor1, col_sor2 = st.columns(2)
         with col_sor1:
-            st.markdown('<div style="font-size:11px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Portfolio drop</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:11px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Market drop at retirement (%)</div>', unsafe_allow_html=True)
             crash_pct = st.slider("crash", 10, 50, 30, 5, format="-%d%%", label_visibility="collapsed") / 100
         with col_sor2:
-            st.markdown('<div style="font-size:11px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Crash in retirement year</div>', unsafe_allow_html=True)
-        crash_year = st.slider("crash_year", 1, min(10, yr), 1, label_visibility="collapsed")
+            st.markdown('<div style="font-size:11px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Drop occurs in retirement year</div>', unsafe_allow_html=True)
+            crash_year = st.slider("crash_year", 1, min(10, yr), 1, label_visibility="collapsed")
 
         h_normal = simulate(mi, mc_inc, ya, yr, ar)[0]
         h_crash  = simulate_with_crash(mi, mc_inc, ya, yr, ar, crash_pct, crash_year)
@@ -1397,9 +1459,10 @@ elif st.session_state.step == 4:
         fig_sor.add_trace(go.Scatter(x=[i/12 for i in range(len(h_normal))], y=h_normal,
                                      mode="lines", name="No crash", line=dict(color="#7F77DD", width=2)))
         fig_sor.add_trace(go.Scatter(x=[i/12 for i in range(len(h_crash))], y=h_crash,
-                                     mode="lines", name=f"{int(crash_pct*100)}% crash in year {crash_year}",
+                                     mode="lines", name=f"{int(crash_pct*100)}% drop in year {crash_year}",
                                      line=dict(color="#E24B4A", width=2)))
-        fig_sor.add_vline(x=ya, line_color="rgba(255,255,255,0.12)", line_dash="dash")
+        fig_sor.add_vline(x=ya, line_color="rgba(255,255,255,0.12)", line_dash="dash",
+                          annotation_text="Retirement starts", annotation_font_color="#3f3f46")
         fig_sor.update_layout(
             template="plotly_dark", paper_bgcolor="#0B0B0F", plot_bgcolor="#0f0f16",
             height=300, margin=dict(l=0,r=0,t=10,b=0),
@@ -1412,12 +1475,12 @@ elif st.session_state.step == 4:
         crash_survives = h_crash[-1] > 0 if h_crash else False
         sor_color = "#7F77DD" if crash_survives else "#E24B4A"
         st.markdown(f"""
-        <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;padding:18px 22px">
-          <div style="font-size:13px;font-weight:500;color:{sor_color};margin-bottom:4px">
-            {'Your plan survives even with this crash scenario.' if crash_survives else 'Your plan does not survive this crash scenario.'}
+        <div style="background:#0f0f16;border:0.5px solid {'rgba(127,119,221,0.25)' if crash_survives else 'rgba(226,75,74,0.25)'};border-radius:10px;padding:18px 22px">
+          <div style="font-size:13px;font-weight:500;color:{sor_color};margin-bottom:6px">
+            {'✓ Your plan survives this scenario.' if crash_survives else '✗ Your plan does not survive this scenario.'}
           </div>
-          <div style="font-size:12px;color:#52525B">
-            {'A larger cash buffer or more conservative withdrawal rate would increase resilience.' if not crash_survives else 'Consider keeping 2-3 years of expenses in cash to avoid selling during downturns.'}
+          <div style="font-size:12px;color:#52525B;line-height:1.65">
+            {'A {int(crash_pct*100)}% market drop in retirement year {crash_year} reduces your portfolio significantly, but your plan remains sustainable. Maintaining 2-3 years of expenses in cash or short-term bonds at retirement helps absorb this kind of shock without selling equities at the worst moment.'.format(int(crash_pct*100), crash_year) if crash_survives else 'This scenario depletes your portfolio before the end of retirement. Consider: (1) increasing your monthly investment now, (2) targeting a lower withdrawal rate, or (3) building a cash buffer of 2-3 years of expenses before retiring.'}
           </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1460,66 +1523,6 @@ elif st.session_state.step == 4:
         )
         st.plotly_chart(fig_heat, use_container_width=True)
         st.markdown("<div style='font-size:11px;color:#3f3f46;margin-top:-8px'>Based on 200 Monte Carlo simulations per cell using your accumulated portfolio at retirement.</div>", unsafe_allow_html=True)
-
-        st.markdown(divider("24px 0"), unsafe_allow_html=True)
-
-        # ── AI INSIGHTS ──
-        st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">🤖 AI-powered insights</div>', unsafe_allow_html=True)
-        st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:14px'>A personalised analysis of your financial situation based on your specific numbers.</div>", unsafe_allow_html=True)
-
-        if st.button("Generate my personalised insights →"):
-            with st.spinner("Analysing your plan..."):
-                try:
-                    ai_prompt = f"""You are Captain Compound, a financial independence expert. 
-Analyse this person's retirement plan and give 4-5 specific, actionable insights in plain English.
-Be direct, honest and specific — use their actual numbers.
-
-Their data:
-- Age: {age}
-- Monthly investment: €{mi:,}
-- Monthly retirement income goal: €{mc_inc:,}
-- Years of accumulation: {ya}
-- Years in retirement: {yr}
-- Investment profile: {inp.get('profile','Balanced')} ({int(ar*100)}% annual return)
-- Freedom Number: €{int(fn):,}
-- Readiness score: {int(score)}/100
-- Monthly gap: {'On track' if gap==0 else f'€{gap:,} below recommended'}
-- Monte Carlo success rate: {mc_prob}%
-- FI age estimate: {fi_age if fi_age else 'Not reached at current rate'}
-- Retirement plan survives: {'Yes' if survives else 'No'}
-
-Write 4-5 insights. Each starts with a bold title. Be specific, use their numbers. 
-No generic advice. Tone: direct, expert, honest. Max 300 words total."""
-
-                    response = requests.post(
-                        "https://api.anthropic.com/v1/messages",
-                        headers={
-                            "Content-Type": "application/json",
-                            "x-api-key": st.secrets.get("ANTHROPIC_API_KEY", ""),
-                            "anthropic-version": "2023-06-01"
-                        },
-                        json={
-                            "model": "claude-sonnet-4-20250514",
-                            "max_tokens": 1000,
-                            "messages": [{"role": "user", "content": ai_prompt}]
-                        },
-                        timeout=30
-                    )
-                    if response.status_code == 200:
-                        ai_text = response.json()["content"][0]["text"]
-                        st.session_state["ai_insights"] = ai_text
-                    else:
-                        st.session_state["ai_insights"] = f"Error {response.status_code}: {response.text[:200]}"
-                except Exception as e:
-                    st.session_state["ai_insights"] = "Unable to connect to analysis service."
-
-        if "ai_insights" in st.session_state:
-            st.markdown(f"""
-            <div style="background:#0f0f16;border:0.5px solid rgba(90,84,196,0.25);border-radius:12px;
-                 padding:24px 28px;font-size:14px;color:#A1A1AA;line-height:1.8;white-space:pre-wrap">
-{st.session_state["ai_insights"]}
-            </div>
-            """, unsafe_allow_html=True)
 
         st.markdown(divider("24px 0"), unsafe_allow_html=True)
 
@@ -1631,13 +1634,16 @@ No generic advice. Tone: direct, expert, honest. Max 300 words total."""
         else:
             st.info("Install openpyxl to enable Excel export: pip install openpyxl")
         st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">📄 Full Pro report</div>', unsafe_allow_html=True)
-        st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:20px'>4-page branded PDF with chart, metrics, Monte Carlo result and personalised insights.</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:20px'>Comprehensive branded PDF including all Pro analysis: Monte Carlo, stress test, Coast FI, heatmap and year-by-year projection.</div>", unsafe_allow_html=True)
 
         pro_inp = {**inp,
                    "name":    st.session_state.inputs.get("pro_name", st.session_state.pro_email),
                    "email":   st.session_state.pro_email,
                    "country": inp.get("country", "—")}
-        pro_pdf = generate_pdf(pro_inp, score, inv_needed, max_cap, target_cap, fn, fi_age, survives, gap)
+        pro_pdf = generate_pdf(pro_inp, score, inv_needed, max_cap, target_cap, fn, fi_age, survives, gap,
+                               mc_prob=mc_prob, coast_age=coast_reached_age,
+                               contrib_pct=final_contrib_pct, returns_pct=final_returns_pct,
+                               total_contrib=int(contrib_vals[-1]), total_returns=int(returns_vals[-1]))
 
         col_pro_dl = st.columns([2, 1, 2])
         with col_pro_dl[1]:
