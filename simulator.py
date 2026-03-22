@@ -3,10 +3,33 @@ import plotly.graph_objects as go
 import numpy as np
 import io
 import re
+import requests
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from datetime import datetime
+
+# ─────────────────────────────────────────────
+# AIRTABLE CONFIG
+# ─────────────────────────────────────────────
+
+AIRTABLE_TOKEN   = "pattia1mqTxC9sA8H.6db604884c78394577a0f20f84df1557490122a0cab25344e9d7477d354b58cd"
+AIRTABLE_BASE_ID = "app6WihCdXQq2IMYk"
+AIRTABLE_URL     = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}"
+
+def save_lead(table, fields):
+    try:
+        requests.post(
+            f"{AIRTABLE_URL}/{table}",
+            headers={
+                "Authorization": f"Bearer {AIRTABLE_TOKEN}",
+                "Content-Type": "application/json"
+            },
+            json={"fields": fields},
+            timeout=5
+        )
+    except Exception:
+        pass  # Never block the user if Airtable is down
 
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak, Image as RLImage
 from reportlab.lib.styles import ParagraphStyle
@@ -963,6 +986,15 @@ elif st.session_state.step == 4:
                     st.error("Please enter a valid email address.")
                 else:
                     st.session_state.inputs.update({"name": name, "email": email, "country": country})
+                    save_lead("free_leads", {
+                        "Name":           name,
+                        "Email":          email,
+                        "Country":        country,
+                        "Score":          round(score, 1),
+                        "Freedom Number": int(fn),
+                        "Profile":        inp.get("profile", ""),
+                        "Timestamp":      datetime.now().isoformat()
+                    })
                     st.session_state.pdf_unlocked = True
                     st.rerun()
 
@@ -1057,17 +1089,16 @@ elif st.session_state.step == 4:
               </div>
             </div>
 
-            <!-- early access note -->
+            st.markdown(f"""
             <div style="background:rgba(90,84,196,0.07);border:0.5px solid rgba(90,84,196,0.2);border-radius:9px;
                  padding:14px 18px;margin-bottom:20px;font-size:12px;color:#71717A;line-height:1.6">
               <span style="color:#9490e8;font-weight:500">Early access:</span>
               Pro is currently free while we build the full platform. Enter your email to unlock it now.
-              You will be notified when Pro becomes a paid feature — with a discount for early members.
+              You will be notified when Pro becomes a paid feature, with a discount for early members.
             </div>
+            """, unsafe_allow_html=True)
 
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
         # Pro gate form
         st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
@@ -1087,6 +1118,11 @@ elif st.session_state.step == 4:
                 elif not pro_email_valid:
                     st.error("Please enter a valid email address.")
                 else:
+                    save_lead("pro_leads", {
+                        "Name":      pro_name,
+                        "Email":     pro_email,
+                        "Timestamp": datetime.now().isoformat()
+                    })
                     st.session_state.pro_unlocked = True
                     st.session_state.pro_email = pro_email
                     st.session_state.inputs.update({"pro_name": pro_name, "pro_email": pro_email})
