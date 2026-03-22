@@ -495,7 +495,7 @@ def generate_pdf(inp, score, inv_needed, max_cap, target_cap, fn, fi_age, surviv
         story.append(Paragraph("05 — Pro Analysis", sty_h1))
         story.append(HRFlowable(width=W, color=C_PURPLE_D, thickness=0.5, spaceAfter=14))
 
-        story.append(Paragraph("Monte Carlo Simulation", h2))
+        story.append(Paragraph("Monte Carlo Simulation", sty_h2))
         mc_color_pdf = colors.HexColor("#7F77DD") if mc_prob >= 70 else colors.HexColor("#EF9F27") if mc_prob >= 50 else colors.HexColor("#E24B4A")
         mc_row = [[
             Paragraph(f'<font size="40"><b>{mc_prob}%</b></font><br/><font size="9" color="#71717A">success rate</font>',
@@ -515,7 +515,7 @@ def generate_pdf(inp, score, inv_needed, max_cap, target_cap, fn, fi_age, surviv
         story.append(Spacer(1, 14))
 
         if contrib_pct is not None:
-            story.append(Paragraph("Portfolio Breakdown — Contributions vs Returns", h2))
+            story.append(Paragraph("Portfolio Breakdown — Contributions vs Returns", sty_h2))
             bd_row = [[
                 Paragraph(f'YOUR CONTRIBUTIONS<br/><font size="18"><b>€{total_contrib:,}</b></font><br/><font size="9" color="#71717A">{contrib_pct}% of final portfolio</font>',
                           ps("b1", fontName="Helvetica", fontSize=9, textColor=colors.HexColor("#AFA9EC"), leading=20)),
@@ -531,7 +531,7 @@ def generate_pdf(inp, score, inv_needed, max_cap, target_cap, fn, fi_age, surviv
             story.append(Spacer(1, 14))
 
         if coast_age:
-            story.append(Paragraph("Coast FI", h2))
+            story.append(Paragraph("Coast FI", sty_h2))
             story.append(Paragraph(
                 f"You reach Coast FI at approximately age <b>{coast_age}</b>. At that point you could stop all contributions "
                 f"and compounding alone would grow your portfolio to €{int(fn):,} by retirement, "
@@ -1349,7 +1349,7 @@ elif st.session_state.step == 4:
         </div>
         """, unsafe_allow_html=True)
 
-        qe1, qe2, qe3, qe4, qe5 = st.columns(5)
+        qe1, qe2, qe3, qe4, qe5, qe6 = st.columns(6)
         with qe1:
             st.markdown('<div style="font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Monthly invest (€)</div>', unsafe_allow_html=True)
             new_mi = st.number_input("qe_mi", min_value=0, max_value=50000, value=int(mi), step=50, label_visibility="collapsed")
@@ -1364,9 +1364,20 @@ elif st.session_state.step == 4:
             new_yr = st.number_input("qe_yr", min_value=5, max_value=40, value=int(yr), step=1, label_visibility="collapsed")
         with qe5:
             st.markdown('<div style="font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Profile</div>', unsafe_allow_html=True)
-            new_profile = st.selectbox("qe_profile", ["Conservative", "Balanced", "Aggressive"],
-                                       index=["Conservative","Balanced","Aggressive"].index(inp.get("profile","Balanced")),
+            new_profile = st.selectbox("qe_profile", ["Conservative", "Balanced", "Aggressive", "Custom"],
+                                       index=["Conservative","Balanced","Aggressive"].index(inp.get("profile","Balanced"))
+                                       if inp.get("profile","Balanced") in ["Conservative","Balanced","Aggressive"] else 3,
                                        label_visibility="collapsed")
+        with qe6:
+            st.markdown('<div style="font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Annual return (%)</div>', unsafe_allow_html=True)
+            default_ar = int(ar * 100) if new_profile == "Custom" else {"Conservative":4,"Balanced":6,"Aggressive":8}.get(new_profile, 6)
+            new_ar_pct = st.number_input("qe_ar", min_value=1, max_value=20, value=default_ar, step=1,
+                                          label_visibility="collapsed",
+                                          disabled=(new_profile != "Custom"))
+            if new_profile != "Custom":
+                st.markdown(f'<div style="font-size:10px;color:#3f3f46;margin-top:3px">{default_ar}% (fixed)</div>', unsafe_allow_html=True)
+
+        final_ar = (new_ar_pct / 100) if new_profile == "Custom" else {"Conservative":0.04,"Balanced":0.06,"Aggressive":0.08}[new_profile]
 
         col_qe_btn1, col_qe_btn2 = st.columns([1, 4])
         with col_qe_btn1:
@@ -1377,7 +1388,7 @@ elif st.session_state.step == 4:
                     "years_accumulation": new_ya,
                     "years_retirement":   new_yr,
                     "profile":            new_profile,
-                    "ann_return":         {"Conservative":0.04,"Balanced":0.06,"Aggressive":0.08}[new_profile],
+                    "ann_return":         final_ar,
                     "freedom_number":     freedom_number(new_mc),
                 })
                 st.rerun()
