@@ -614,7 +614,7 @@ st.markdown("<div style='border-bottom:0.5px solid rgba(255,255,255,0.07);margin
 # ─────────────────────────────────────────────
 
 for key, default in [
-    ("step", 1), ("inputs", {}), ("results", None),
+    ("step", 0), ("inputs", {}), ("results", None),
     ("show_pdf_gate", False), ("pdf_unlocked", False),
     ("pro_unlocked", False), ("pro_email", ""), ("pro_gate_open", False)
 ]:
@@ -695,25 +695,80 @@ def monte_carlo(mi, mc, ya, yr, ar, n=1000):
 # STEPS 1–3
 # ─────────────────────────────────────────────
 
-if st.session_state.step <= 3:
+# ── STEP 0 — INTRO ──
+if st.session_state.step == 0:
+    st.markdown("""
+    <div style="max-width:580px;margin:40px auto 0;text-align:center">
+      <div style="display:inline-block;background:rgba(90,84,196,0.12);border:0.5px solid rgba(90,84,196,0.3);
+           border-radius:20px;color:#9490e8;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+           padding:4px 14px;margin-bottom:24px">Freedom Simulator</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:36px;font-weight:700;
+           letter-spacing:-.5px;line-height:1.15;margin-bottom:16px">
+        Find the number that<br>sets you free.
+      </div>
+      <div style="font-size:15px;color:#71717A;line-height:1.75;margin-bottom:40px;max-width:460px;margin-left:auto;margin-right:auto">
+        This simulator calculates your <strong style="color:#A1A1AA">Freedom Number</strong> —
+        the exact portfolio size at which your investments generate enough passive income
+        to cover your living expenses, permanently.
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;max-width:580px;margin:0 auto 40px">
+      <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;padding:18px 16px;text-align:center">
+        <div style="font-size:22px;margin-bottom:8px">⏱</div>
+        <div style="font-size:12px;font-weight:600;color:#F2F2F2;margin-bottom:4px">3 minutes</div>
+        <div style="font-size:11px;color:#52525B;line-height:1.5">To complete the analysis</div>
+      </div>
+      <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;padding:18px 16px;text-align:center">
+        <div style="font-size:22px;margin-bottom:8px">📊</div>
+        <div style="font-size:12px;font-weight:600;color:#F2F2F2;margin-bottom:4px">3 questions</div>
+        <div style="font-size:11px;color:#52525B;line-height:1.5">No complex data needed</div>
+      </div>
+      <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;padding:18px 16px;text-align:center">
+        <div style="font-size:22px;margin-bottom:8px">📄</div>
+        <div style="font-size:12px;font-weight:600;color:#F2F2F2;margin-bottom:4px">Free report</div>
+        <div style="font-size:11px;color:#52525B;line-height:1.5">PDF with your results</div>
+      </div>
+    </div>
+
+    <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.06);border-left:2px solid #5A54C4;
+         border-radius:0 10px 10px 0;padding:16px 20px;max-width:580px;margin:0 auto 40px">
+      <div style="font-size:13px;color:#A1A1AA;line-height:1.7">
+        <strong style="color:#F2F2F2">What you will need:</strong>
+        your current age, how much you can invest per month, and an idea of the monthly income
+        you would want in retirement. That is all. We handle the math.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_start = st.columns([2, 1, 2])
+    with col_start[1]:
+        if st.button("Start my analysis →"):
+            st.session_state.step = 1
+            st.rerun()
+
+elif st.session_state.step <= 3:
     step_indicator(st.session_state.step)
     st.markdown("<div style='margin-bottom:32px'></div>", unsafe_allow_html=True)
 
 # ── STEP 1 ──
 if st.session_state.step == 1:
     st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:28px;font-weight:700;letter-spacing:-.5px;margin-bottom:6px">Your current situation</div>', unsafe_allow_html=True)
-    st.markdown('<div style="color:#71717A;font-size:15px;margin-bottom:32px">Tell us where you stand today.</div>', unsafe_allow_html=True)
+    st.markdown('<div style="color:#71717A;font-size:15px;margin-bottom:32px">A few numbers about where you are today. No income data needed — just your age, what you invest, and your time horizon.</div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown(label("Current age"), unsafe_allow_html=True)
         current_age = st.number_input("Age", min_value=18, max_value=70, value=30, step=1, label_visibility="collapsed")
+        st.markdown('<div style="font-size:11px;color:#3f3f46;margin-top:4px">Your age today</div>', unsafe_allow_html=True)
     with col2:
         st.markdown(label("Monthly investment (€)"), unsafe_allow_html=True)
         monthly_investment = st.number_input("Monthly investment", min_value=0, max_value=50000, value=300, step=50, label_visibility="collapsed")
+        st.markdown('<div style="font-size:11px;color:#3f3f46;margin-top:4px">What you can consistently set aside each month. €200–800 is typical for someone starting out.</div>', unsafe_allow_html=True)
     with col3:
         st.markdown(label("Years of accumulation"), unsafe_allow_html=True)
         years_accumulation = st.slider("Years acc", 5, 40, 25, label_visibility="collapsed")
+        st.markdown('<div style="font-size:11px;color:#3f3f46;margin-top:4px">How many years you plan to invest before retiring. Most people choose 20–30 years.</div>', unsafe_allow_html=True)
 
     ret_age = current_age + years_accumulation
     st.markdown(f"""
@@ -740,16 +795,34 @@ if st.session_state.step == 1:
 
 # ── STEP 2 ──
 elif st.session_state.step == 2:
+    # Summary bar from step 1
+    s1 = st.session_state.inputs
+    st.markdown(f"""
+    <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.06);border-radius:10px;
+         padding:12px 20px;margin-bottom:28px;display:flex;gap:32px;flex-wrap:wrap">
+      <div><span style="font-size:10px;color:#3f3f46;text-transform:uppercase;letter-spacing:.8px">Age</span>
+           <span style="font-size:13px;color:#F2F2F2;margin-left:8px;font-weight:500">{s1.get('current_age',30)}</span></div>
+      <div><span style="font-size:10px;color:#3f3f46;text-transform:uppercase;letter-spacing:.8px">Monthly investment</span>
+           <span style="font-size:13px;color:#F2F2F2;margin-left:8px;font-weight:500">€{s1.get('monthly_investment',300):,}</span></div>
+      <div><span style="font-size:10px;color:#3f3f46;text-transform:uppercase;letter-spacing:.8px">Years accumulation</span>
+           <span style="font-size:13px;color:#F2F2F2;margin-left:8px;font-weight:500">{s1.get('years_accumulation',25)}</span></div>
+      <div><span style="font-size:10px;color:#3f3f46;text-transform:uppercase;letter-spacing:.8px">Retirement age</span>
+           <span style="font-size:13px;color:#7F77DD;margin-left:8px;font-weight:600">{s1.get('current_age',30) + s1.get('years_accumulation',25)}</span></div>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:28px;font-weight:700;letter-spacing:-.5px;margin-bottom:6px">Your retirement goal</div>', unsafe_allow_html=True)
-    st.markdown('<div style="color:#71717A;font-size:15px;margin-bottom:32px">What kind of retirement do you want?</div>', unsafe_allow_html=True)
+    st.markdown('<div style="color:#71717A;font-size:15px;margin-bottom:32px">Define what financial independence looks like for you. Think in terms of your current monthly expenses — not a dream lifestyle, but a life you would genuinely enjoy.</div>', unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(label("Desired monthly income (€)"), unsafe_allow_html=True)
         monthly_income = st.number_input("Monthly income", min_value=500, max_value=20000, value=1500, step=100, label_visibility="collapsed")
+        st.markdown('<div style="font-size:11px;color:#3f3f46;margin-top:4px">The monthly income your portfolio needs to generate. Start with your current expenses. €1,000–2,500/month covers a comfortable life in most of Europe.</div>', unsafe_allow_html=True)
     with col2:
         st.markdown(label("Years in retirement"), unsafe_allow_html=True)
         years_retirement = st.slider("Years ret", 5, 40, 25, label_visibility="collapsed")
+        st.markdown('<div style="font-size:11px;color:#3f3f46;margin-top:4px">How long your portfolio needs to last. If you retire at 55, plan for 30–35 years. When in doubt, choose more rather than less.</div>', unsafe_allow_html=True)
 
     fn = freedom_number(monthly_income)
     st.markdown(f"""
@@ -768,6 +841,18 @@ elif st.session_state.step == 2:
       </div>
     ''', border_color='rgba(90,84,196,0.25)')}""", unsafe_allow_html=True)
 
+    st.markdown("""
+    <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.05);border-left:2px solid #26215C;
+         border-radius:0 8px 8px 0;padding:14px 18px;margin-top:4px">
+      <div style="font-size:12px;color:#52525B;line-height:1.7">
+        <strong style="color:#3f3f46">What is the Freedom Number?</strong>
+        It is the total invested portfolio that, at a 4% annual withdrawal rate, generates your desired income indefinitely.
+        This is based on the widely-cited 4% rule, validated across multiple market cycles.
+        Your number updates as you adjust the sliders above.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     c1, c2 = st.columns(2)
     with c1:
         if st.button("← Back"):
@@ -779,13 +864,32 @@ elif st.session_state.step == 2:
 
 # ── STEP 3 ──
 elif st.session_state.step == 3:
+    # Full summary from steps 1 + 2
+    s = st.session_state.inputs
+    fn_s = freedom_number(s.get('monthly_income', 1500))
+    st.markdown(f"""
+    <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.06);border-radius:10px;
+         padding:12px 20px;margin-bottom:28px;display:flex;gap:28px;flex-wrap:wrap">
+      <div><span style="font-size:10px;color:#3f3f46;text-transform:uppercase;letter-spacing:.8px">Age</span>
+           <span style="font-size:13px;color:#F2F2F2;margin-left:8px;font-weight:500">{s.get('current_age',30)}</span></div>
+      <div><span style="font-size:10px;color:#3f3f46;text-transform:uppercase;letter-spacing:.8px">Monthly investment</span>
+           <span style="font-size:13px;color:#F2F2F2;margin-left:8px;font-weight:500">€{s.get('monthly_investment',300):,}</span></div>
+      <div><span style="font-size:10px;color:#3f3f46;text-transform:uppercase;letter-spacing:.8px">Accumulation</span>
+           <span style="font-size:13px;color:#F2F2F2;margin-left:8px;font-weight:500">{s.get('years_accumulation',25)} yrs</span></div>
+      <div><span style="font-size:10px;color:#3f3f46;text-transform:uppercase;letter-spacing:.8px">Monthly income goal</span>
+           <span style="font-size:13px;color:#F2F2F2;margin-left:8px;font-weight:500">€{s.get('monthly_income',1500):,}</span></div>
+      <div><span style="font-size:10px;color:#3f3f46;text-transform:uppercase;letter-spacing:.8px">Freedom Number</span>
+           <span style="font-size:13px;color:#7F77DD;margin-left:8px;font-weight:600">€{int(fn_s):,}</span></div>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:28px;font-weight:700;letter-spacing:-.5px;margin-bottom:6px">Your investment profile</div>', unsafe_allow_html=True)
-    st.markdown('<div style="color:#71717A;font-size:15px;margin-bottom:32px">Choose how you want to invest.</div>', unsafe_allow_html=True)
+    st.markdown('<div style="color:#71717A;font-size:15px;margin-bottom:32px">Choose how you plan to invest. If you are unsure, <strong style="color:#A1A1AA">Balanced</strong> is the right default for most long-term investors.</div>', unsafe_allow_html=True)
 
     profile_data = {
-        "Conservative": ("~4% annual return", "Low-cost bond and money market funds. Lower growth, lower volatility.", "#AFA9EC"),
-        "Balanced":     ("~6% annual return", "Global equity index funds + bonds. The most recommended long-term allocation.", "#7F77DD"),
-        "Aggressive":   ("~8% annual return", "100% global equity index funds. Higher long-term growth, higher volatility.", "#5A54C4"),
+        "Conservative": ("~4% annual return", "Low-cost bond and money market funds. Lower growth, lower volatility. Suitable if you are close to retirement or prefer stability over returns.", "#AFA9EC"),
+        "Balanced":     ("~6% annual return", "Global equity index funds + bonds. The most recommended long-term allocation for investors with a 15+ year horizon. Based on Vanguard 2024 data.", "#7F77DD"),
+        "Aggressive":   ("~8% annual return", "100% global equity index funds. Higher long-term growth, higher short-term volatility. Best suited for investors with 20+ years and strong emotional discipline.", "#5A54C4"),
     }
 
     profile = st.selectbox("Investment profile", list(profile_data.keys()), index=1, label_visibility="collapsed")
@@ -802,14 +906,15 @@ elif st.session_state.step == 3:
       </div>
     ''')}""", unsafe_allow_html=True)
 
-    st.markdown(f"""
+    st.markdown("""
     <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.05);border-left:2px solid #26215C;
          border-radius:0 8px 8px 0;padding:14px 18px;margin-top:4px">
       <div style="font-size:12px;color:#3f3f46;line-height:1.7">
-        <span style="color:#52525B;font-weight:500">Free version note:</span>
-        Projections use nominal returns and do not account for inflation.
-        In real terms, purchasing power will be lower. The Pro version includes
-        inflation-adjusted projections so you can plan with real euros, not just nominal figures.
+        <strong style="color:#52525B">About these return estimates:</strong>
+        Returns are nominal (before inflation) and based on long-term historical averages.
+        The S&P 500 has returned ~10% annually since 1928. A globally diversified 60/40 portfolio
+        has returned ~6.8% since 1997 (Vanguard, 2024). Past performance does not guarantee future results.
+        The Pro version includes inflation-adjusted projections so you can plan in real euros.
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1781,5 +1886,5 @@ elif st.session_state.step == 4:
     with col_r[1]:
         if st.button("← Start over"):
             for k in ["step", "inputs", "results", "show_pdf_gate", "pdf_unlocked", "pro_unlocked", "pro_email", "pro_gate_open"]:
-                st.session_state[k] = 1 if k == "step" else ({} if k == "inputs" else ("" if k == "pro_email" else (False if k != "results" else None)))
+                st.session_state[k] = 0 if k == "step" else ({} if k == "inputs" else ("" if k == "pro_email" else (False if k != "results" else None)))
             st.rerun()
