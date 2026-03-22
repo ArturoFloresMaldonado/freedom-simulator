@@ -28,9 +28,9 @@ def save_lead(table, fields):
             json={"fields": fields},
             timeout=5
         )
-        st.info(f"Airtable [{table}]: {response.status_code} — {response.text[:200]}")
+        st.session_state["airtable_debug"] = f"[{table}] {response.status_code}: {response.text[:300]}"
     except Exception as e:
-        st.error(f"Connection error: {e}")
+        st.session_state["airtable_debug"] = f"Connection error: {e}"
 
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak, Image as RLImage
 from reportlab.lib.styles import ParagraphStyle
@@ -762,6 +762,9 @@ elif st.session_state.step == 3:
 
 elif st.session_state.step == 4:
 
+    if "airtable_debug" in st.session_state:
+        st.code(st.session_state["airtable_debug"])
+
     inp = st.session_state.inputs
     mi, mc_inc = inp["monthly_investment"], inp["monthly_income"]
     ya, yr     = inp["years_accumulation"],  inp["years_retirement"]
@@ -1231,6 +1234,3 @@ elif st.session_state.step == 4:
             for k in ["step", "inputs", "results", "show_pdf_gate", "pdf_unlocked", "pro_unlocked", "pro_email", "pro_gate_open"]:
                 st.session_state[k] = 1 if k == "step" else ({} if k == "inputs" else ("" if k == "pro_email" else (False if k != "results" else None)))
             st.rerun()
-
-
-
