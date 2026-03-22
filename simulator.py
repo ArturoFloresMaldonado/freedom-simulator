@@ -79,7 +79,22 @@ div[data-testid="stMetric"] [data-testid="stMetricValue"] {
 }
 .stButton > button:hover { background: #4840a8; border: none; }
 
-.stProgress > div > div > div > div { background-color: #7F77DD; }
+.stDownloadButton > button {
+    background: #5A54C4 !important;
+    color: white !important;
+    border-radius: 9px !important;
+    border: none !important;
+    padding: 12px 28px !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    width: 100% !important;
+}
+
+.stDownloadButton > button:hover {
+    background: #4840a8 !important;
+    border: none !important;
+}
 .stSelectbox > div > div { background: #0f0f16; border: 0.5px solid rgba(255,255,255,0.1); border-radius: 8px; }
 .stNumberInput > div > div > input { background: #0f0f16; border: 0.5px solid rgba(255,255,255,0.1); border-radius: 8px; color: #F2F2F2; }
 .stTextInput > div > div > input { background: #0f0f16; border: 0.5px solid rgba(255,255,255,0.1); border-radius: 8px; color: #F2F2F2; }
@@ -986,7 +1001,6 @@ elif st.session_state.step == 4:
                     st.error("Please enter a valid email address.")
                 else:
                     st.session_state.inputs.update({"name": name, "email": email, "country": country})
-                    print(f"DEBUG free_leads: email={email} country={country} score={score} fn={fn} profile={inp.get('profile','')}")
                     save_lead("free_leads", {
                         "Email":          email,
                         "Country":        country,
@@ -994,7 +1008,6 @@ elif st.session_state.step == 4:
                         "Freedom Number": int(fn),
                         "Profile":        inp.get("profile", ""),
                     })
-                    print(f"DEBUG save_lead called")
                     st.session_state.pdf_unlocked = True
                     st.rerun()
 
@@ -1202,7 +1215,386 @@ elif st.session_state.step == 4:
 
         st.markdown(divider("0 0 20px"), unsafe_allow_html=True)
 
-        # Pro PDF
+        # ── BREAKDOWN: CONTRIBUTIONS VS RETURNS ──
+        st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">📦 Contributions vs returns breakdown</div>', unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:14px'>How much of your final portfolio comes from what you invested versus what the market generated.</div>", unsafe_allow_html=True)
+
+        years_range   = list(range(1, ya + 1))
+        contrib_vals  = [mi * 12 * y for y in years_range]
+        portfolio_vals = []
+        cap_tmp = 0
+        mr_tmp  = ar / 12
+        for y in years_range:
+            for _ in range(12):
+                cap_tmp = cap_tmp * (1 + mr_tmp) + mi
+            portfolio_vals.append(cap_tmp)
+        returns_vals = [max(0, p - c) for p, c in zip(portfolio_vals, contrib_vals)]
+
+        fig_break = go.Figure()
+        fig_break.add_trace(go.Bar(x=years_range, y=contrib_vals, name="Your contributions",
+                                   marker_color="#26215C"))
+        fig_break.add_trace(go.Bar(x=years_range, y=returns_vals, name="Market returns",
+                                   marker_color="#7F77DD"))
+        fig_break.update_layout(
+            barmode="stack", template="plotly_dark",
+            paper_bgcolor="#0B0B0F", plot_bgcolor="#0f0f16",
+            height=320, margin=dict(l=0,r=0,t=10,b=0),
+            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#A1A1AA")),
+            xaxis=dict(title="Year", color="#3f3f46", gridcolor="rgba(255,255,255,0.04)"),
+            yaxis=dict(title="Portfolio (€)", color="#3f3f46", gridcolor="rgba(255,255,255,0.04)", tickprefix="€")
+        )
+        st.plotly_chart(fig_break, use_container_width=True)
+
+        final_contrib_pct = round((contrib_vals[-1] / max(portfolio_vals[-1], 1)) * 100)
+        final_returns_pct = 100 - final_contrib_pct
+        st.markdown(f"""
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px">
+          <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px 20px">
+            <div style="font-size:11px;color:#3f3f46;margin-bottom:4px">YOUR CONTRIBUTIONS</div>
+            <div style="font-size:24px;font-weight:700;color:#AFA9EC;font-family:'Space Grotesk',sans-serif">€{int(contrib_vals[-1]):,}</div>
+            <div style="font-size:12px;color:#52525B">{final_contrib_pct}% of final portfolio</div>
+          </div>
+          <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;padding:16px 20px">
+            <div style="font-size:11px;color:#3f3f46;margin-bottom:4px">MARKET RETURNS</div>
+            <div style="font-size:24px;font-weight:700;color:#7F77DD;font-family:'Space Grotesk',sans-serif">€{int(returns_vals[-1]):,}</div>
+            <div style="font-size:12px;color:#52525B">{final_returns_pct}% of final portfolio</div>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(divider("24px 0"), unsafe_allow_html=True)
+
+        # ── COAST FI ──
+        st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">🏄 Coast FI calculator</div>', unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:14px'>The point at which you can stop investing and compounding alone will grow your portfolio to your Freedom Number by retirement age.</div>", unsafe_allow_html=True)
+
+        def coast_fi_number(fn_target, years_to_retirement, ann_return):
+            return fn_target / ((1 + ann_return) ** years_to_retirement)
+
+        ret_age = age + ya
+        coast_fi_vals = []
+        coast_years   = list(range(1, ya))
+        for y in coast_years:
+            yrs_left = ret_age - (age + y)
+            if yrs_left > 0:
+                coast_fi_vals.append(coast_fi_number(fn, yrs_left, ar))
+            else:
+                coast_fi_vals.append(fn)
+
+        coast_reached_age = None
+        cap_coast = 0
+        for m in range(ya * 12):
+            cap_coast = cap_coast * (1 + ar/12) + mi
+            yr_now = age + m/12
+            yrs_left = ret_age - yr_now
+            if yrs_left > 0:
+                coast_needed = coast_fi_number(fn, yrs_left, ar)
+                if cap_coast >= coast_needed and coast_reached_age is None:
+                    coast_reached_age = round(yr_now, 1)
+
+        fig_coast = go.Figure()
+        cap_by_year = []
+        c = 0
+        for y in coast_years:
+            for _ in range(12): c = c * (1 + ar/12) + mi
+            cap_by_year.append(c)
+
+        fig_coast.add_trace(go.Scatter(x=[age + y for y in coast_years], y=coast_fi_vals,
+                                       mode="lines", name="Coast FI target",
+                                       line=dict(color="#f9f09d", width=2, dash="dot")))
+        fig_coast.add_trace(go.Scatter(x=[age + y for y in coast_years], y=cap_by_year,
+                                       mode="lines", name="Your portfolio",
+                                       line=dict(color="#7F77DD", width=2)))
+        fig_coast.update_layout(
+            template="plotly_dark", paper_bgcolor="#0B0B0F", plot_bgcolor="#0f0f16",
+            height=300, margin=dict(l=0,r=0,t=10,b=0),
+            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#A1A1AA")),
+            xaxis=dict(title="Age", color="#3f3f46", gridcolor="rgba(255,255,255,0.04)"),
+            yaxis=dict(color="#3f3f46", gridcolor="rgba(255,255,255,0.04)", tickprefix="€")
+        )
+        st.plotly_chart(fig_coast, use_container_width=True)
+
+        if coast_reached_age:
+            st.markdown(f"""
+            <div style="background:#0f0f16;border:0.5px solid rgba(249,240,157,0.2);border-radius:10px;padding:18px 22px">
+              <div style="font-size:13px;color:#F2F2F2;margin-bottom:4px">
+                You reach Coast FI at approximately <strong style="color:#f9f09d">age {coast_reached_age}</strong>.
+              </div>
+              <div style="font-size:12px;color:#52525B">
+                At that point you could stop contributing entirely and compounding alone would grow your portfolio to €{int(fn):,} by age {ret_age}.
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;padding:18px 22px">
+              <div style="font-size:13px;color:#71717A">Increase your monthly investment to reach Coast FI within your accumulation period.</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown(divider("24px 0"), unsafe_allow_html=True)
+
+        # ── SEQUENCE OF RETURNS RISK ──
+        st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">⚠️ Sequence of returns risk</div>', unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:14px'>What happens to your retirement if markets crash in your first years of withdrawal. The most dangerous scenario for a retiree.</div>", unsafe_allow_html=True)
+
+        def simulate_with_crash(monthly_inv, monthly_inc, years_acc, years_ret, ann_return, crash_pct, crash_year):
+            capital, history, mr = 0, [], ann_return / 12
+            for _ in range(years_acc * 12):
+                capital = capital * (1 + mr) + monthly_inv
+                history.append(capital)
+            for m in range(years_ret * 12):
+                yr = m // 12
+                if yr == crash_year:
+                    capital *= (1 - crash_pct)
+                capital = capital * (1 + mr) - monthly_inc
+                history.append(max(capital, 0))
+                if capital <= 0: break
+            return history
+
+        crash_pct  = st.slider("Market crash magnitude", 10, 50, 30, 5, format="-%d%%") / 100
+        crash_year = st.slider("Crash occurs in retirement year", 1, min(10, yr), 1)
+
+        h_normal = simulate(mi, mc_inc, ya, yr, ar)[0]
+        h_crash  = simulate_with_crash(mi, mc_inc, ya, yr, ar, crash_pct, crash_year)
+
+        fig_sor = go.Figure()
+        fig_sor.add_trace(go.Scatter(x=[i/12 for i in range(len(h_normal))], y=h_normal,
+                                     mode="lines", name="No crash", line=dict(color="#7F77DD", width=2)))
+        fig_sor.add_trace(go.Scatter(x=[i/12 for i in range(len(h_crash))], y=h_crash,
+                                     mode="lines", name=f"{int(crash_pct*100)}% crash in year {crash_year}",
+                                     line=dict(color="#E24B4A", width=2)))
+        fig_sor.add_vline(x=ya, line_color="rgba(255,255,255,0.12)", line_dash="dash")
+        fig_sor.update_layout(
+            template="plotly_dark", paper_bgcolor="#0B0B0F", plot_bgcolor="#0f0f16",
+            height=300, margin=dict(l=0,r=0,t=10,b=0),
+            legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#A1A1AA")),
+            xaxis=dict(title="Years", color="#3f3f46", gridcolor="rgba(255,255,255,0.04)"),
+            yaxis=dict(color="#3f3f46", gridcolor="rgba(255,255,255,0.04)", tickprefix="€")
+        )
+        st.plotly_chart(fig_sor, use_container_width=True)
+
+        crash_survives = h_crash[-1] > 0 if h_crash else False
+        sor_color = "#7F77DD" if crash_survives else "#E24B4A"
+        st.markdown(f"""
+        <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;padding:18px 22px">
+          <div style="font-size:13px;font-weight:500;color:{sor_color};margin-bottom:4px">
+            {'Your plan survives even with this crash scenario.' if crash_survives else 'Your plan does not survive this crash scenario.'}
+          </div>
+          <div style="font-size:12px;color:#52525B">
+            {'A larger cash buffer or more conservative withdrawal rate would increase resilience.' if not crash_survives else 'Consider keeping 2-3 years of expenses in cash to avoid selling during downturns.'}
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown(divider("24px 0"), unsafe_allow_html=True)
+
+        # ── HEATMAP ──
+        st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">🌡️ Success probability heatmap</div>', unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:14px'>Probability of success across different withdrawal rates and retirement durations.</div>", unsafe_allow_html=True)
+
+        swr_range = [0.03, 0.035, 0.04, 0.045, 0.05]
+        dur_range = [15, 20, 25, 30, 35]
+        heatmap_z = []
+        for swr_val in swr_range:
+            row = []
+            for dur_val in dur_range:
+                monthly_draw = (max_cap * swr_val) / 12
+                ok = sum(
+                    simulate(mi, monthly_draw, ya, dur_val, ar + np.random.normal(0, 0.015))[1]
+                    for _ in range(200)
+                )
+                row.append(round(ok / 200 * 100))
+            heatmap_z.append(row)
+
+        fig_heat = go.Figure(data=go.Heatmap(
+            z=heatmap_z,
+            x=[f"{d} yrs" for d in dur_range],
+            y=[f"{int(s*100)}%" for s in swr_range],
+            colorscale=[[0, "#E24B4A"], [0.5, "#EF9F27"], [1, "#7F77DD"]],
+            text=[[f"{v}%" for v in row] for row in heatmap_z],
+            texttemplate="%{text}",
+            showscale=True,
+            zmin=0, zmax=100
+        ))
+        fig_heat.update_layout(
+            template="plotly_dark", paper_bgcolor="#0B0B0F", plot_bgcolor="#0f0f16",
+            height=280, margin=dict(l=0,r=0,t=10,b=0),
+            xaxis=dict(title="Retirement duration", color="#A1A1AA"),
+            yaxis=dict(title="Withdrawal rate", color="#A1A1AA")
+        )
+        st.plotly_chart(fig_heat, use_container_width=True)
+        st.markdown("<div style='font-size:11px;color:#3f3f46;margin-top:-8px'>Based on 200 Monte Carlo simulations per cell using your accumulated portfolio at retirement.</div>", unsafe_allow_html=True)
+
+        st.markdown(divider("24px 0"), unsafe_allow_html=True)
+
+        # ── AI INSIGHTS ──
+        st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">🤖 AI-powered insights</div>', unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:14px'>A personalised analysis of your financial situation based on your specific numbers.</div>", unsafe_allow_html=True)
+
+        if st.button("Generate my personalised insights →"):
+            with st.spinner("Analysing your plan..."):
+                try:
+                    ai_prompt = f"""You are Captain Compound, a financial independence expert. 
+Analyse this person's retirement plan and give 4-5 specific, actionable insights in plain English.
+Be direct, honest and specific — use their actual numbers.
+
+Their data:
+- Age: {age}
+- Monthly investment: €{mi:,}
+- Monthly retirement income goal: €{mc_inc:,}
+- Years of accumulation: {ya}
+- Years in retirement: {yr}
+- Investment profile: {inp.get('profile','Balanced')} ({int(ar*100)}% annual return)
+- Freedom Number: €{int(fn):,}
+- Readiness score: {int(score)}/100
+- Monthly gap: {'On track' if gap==0 else f'€{gap:,} below recommended'}
+- Monte Carlo success rate: {mc_prob}%
+- FI age estimate: {fi_age if fi_age else 'Not reached at current rate'}
+- Retirement plan survives: {'Yes' if survives else 'No'}
+
+Write 4-5 insights. Each starts with a bold title. Be specific, use their numbers. 
+No generic advice. Tone: direct, expert, honest. Max 300 words total."""
+
+                    response = requests.post(
+                        "https://api.anthropic.com/v1/messages",
+                        headers={
+                            "Content-Type": "application/json",
+                            "x-api-key": st.secrets.get("ANTHROPIC_API_KEY", ""),
+                            "anthropic-version": "2023-06-01"
+                        },
+                        json={
+                            "model": "claude-sonnet-4-20250514",
+                            "max_tokens": 1000,
+                            "messages": [{"role": "user", "content": ai_prompt}]
+                        },
+                        timeout=30
+                    )
+                    if response.status_code == 200:
+                        ai_text = response.json()["content"][0]["text"]
+                        st.session_state["ai_insights"] = ai_text
+                    else:
+                        st.session_state["ai_insights"] = "Unable to generate insights at this time."
+                except Exception as e:
+                    st.session_state["ai_insights"] = "Unable to connect to analysis service."
+
+        if "ai_insights" in st.session_state:
+            st.markdown(f"""
+            <div style="background:#0f0f16;border:0.5px solid rgba(90,84,196,0.25);border-radius:12px;
+                 padding:24px 28px;font-size:14px;color:#A1A1AA;line-height:1.8;white-space:pre-wrap">
+{st.session_state["ai_insights"]}
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown(divider("24px 0"), unsafe_allow_html=True)
+
+        # ── EXCEL EXPORT ──
+        st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">📊 Excel projection</div>', unsafe_allow_html=True)
+        st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:14px'>Your complete year-by-year projection as a downloadable Excel file.</div>", unsafe_allow_html=True)
+
+        def generate_excel(inp_data, history_data, fn_val, score_val):
+            import io as _io
+            try:
+                import openpyxl
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+                from openpyxl.utils import get_column_letter
+            except ImportError:
+                return None
+
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Projection"
+
+            dark   = "FF0B0B0F"
+            purple = "FF5A54C4"
+            light  = "FFF2F2F2"
+            muted  = "FF71717A"
+            surface= "FF0f0f16"
+
+            def cell_style(cell, bold=False, color="FFF2F2F2", bg=None, size=11, align="left"):
+                cell.font = Font(name="Calibri", bold=bold, color=color, size=size)
+                cell.alignment = Alignment(horizontal=align, vertical="center")
+                if bg:
+                    cell.fill = PatternFill("solid", fgColor=bg)
+
+            ws.column_dimensions["A"].width = 8
+            ws.column_dimensions["B"].width = 22
+            ws.column_dimensions["C"].width = 22
+            ws.column_dimensions["D"].width = 22
+            ws.column_dimensions["E"].width = 22
+
+            ws.append(["THE FREEDOM PROJECT (fi) — Financial Projection"])
+            cell_style(ws["A1"], bold=True, color=purple, size=13)
+            ws.merge_cells("A1:E1")
+            ws.row_dimensions[1].height = 30
+
+            ws.append([f"Generated for {inp_data.get('name','')} · {datetime.now().strftime('%B %d, %Y')}"])
+            cell_style(ws["A2"], color=muted, size=10)
+            ws.merge_cells("A2:E2")
+
+            ws.append([])
+
+            headers = ["Year", "Age", "Total Invested (€)", "Portfolio Value (€)", "Market Returns (€)"]
+            ws.append(headers)
+            for i, h in enumerate(headers, 1):
+                c = ws.cell(row=4, column=i)
+                cell_style(c, bold=True, color=light, bg="FF26215C", size=11, align="center")
+            ws.row_dimensions[4].height = 22
+
+            acc_years = inp_data.get("years_accumulation", 25)
+            monthly   = inp_data.get("monthly_investment", 300)
+            ret_age_  = inp_data.get("current_age", 30) + acc_years
+
+            for y in range(1, acc_years + 1):
+                idx    = min(y * 12 - 1, len(history_data) - 1)
+                pval   = history_data[idx] if idx < len(history_data) else 0
+                tcontr = monthly * 12 * y
+                mret   = max(0, pval - tcontr)
+                cur_age = inp_data.get("current_age", 30) + y
+                bg_row = "FF0f0f16" if y % 2 == 0 else "FF141420"
+                row = [y, cur_age, int(tcontr), int(pval), int(mret)]
+                ws.append(row)
+                for i, val in enumerate(row, 1):
+                    c = ws.cell(row=4 + y, column=i)
+                    col_ = "FFf9f09d" if i == 4 else ("FF7F77DD" if i == 5 else light)
+                    cell_style(c, color=col_, bg=bg_row, align="center")
+                ws.row_dimensions[4 + y].height = 18
+
+            ws.append([])
+            summary_row = 4 + acc_years + 2
+            ws.append(["Summary", "", "", "", ""])
+            cell_style(ws.cell(row=summary_row, column=1), bold=True, color=purple, size=12)
+
+            summaries = [
+                ("Freedom Number", f"€{int(fn_val):,}"),
+                ("Readiness Score", f"{int(score_val)}/100"),
+                ("Total Invested", f"€{int(monthly * 12 * acc_years):,}"),
+                ("Final Portfolio", f"€{int(history_data[acc_years*12-1] if len(history_data) >= acc_years*12 else 0):,}"),
+            ]
+            for i, (k, v) in enumerate(summaries):
+                r = summary_row + 1 + i
+                ws.cell(row=r, column=1, value=k)
+                ws.cell(row=r, column=2, value=v)
+                cell_style(ws.cell(row=r, column=1), color=muted, size=10)
+                cell_style(ws.cell(row=r, column=2), bold=True, color=light, size=11)
+
+            buf = _io.BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            return buf
+
+        excel_buf = generate_excel(inp, history, fn, score)
+        if excel_buf:
+            col_xl = st.columns([2, 1, 2])
+            with col_xl[1]:
+                st.download_button(
+                    label="⬇ Download Excel",
+                    data=excel_buf,
+                    file_name=f"freedom_project_projection_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+        else:
+            st.info("Install openpyxl to enable Excel export: pip install openpyxl")
         st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">📄 Full Pro report</div>', unsafe_allow_html=True)
         st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:20px'>4-page branded PDF with chart, metrics, Monte Carlo result and personalised insights.</div>", unsafe_allow_html=True)
 
