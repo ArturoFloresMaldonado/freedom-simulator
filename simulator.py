@@ -997,7 +997,6 @@ elif st.session_state.step == 4:
                         "Score":          round(score, 1),
                         "Freedom Number": int(fn),
                         "Profile":        inp.get("profile", ""),
-                        "Timestamp":      datetime.now().isoformat()
                     })
                     st.session_state.pdf_unlocked = True
                     st.rerun()
@@ -1124,9 +1123,8 @@ elif st.session_state.step == 4:
                     st.error("Please enter a valid email address.")
                 else:
                     save_lead("pro_leads", {
-                        "Name":      pro_name,
-                        "Email":     pro_email,
-                        "Timestamp": datetime.now().isoformat()
+                        "Name":  pro_name,
+                        "Email": pro_email,
                     })
                     st.session_state.pro_unlocked = True
                     st.session_state.pro_email = pro_email
