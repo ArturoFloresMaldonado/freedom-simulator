@@ -1109,37 +1109,67 @@ elif st.session_state.step == 4:
         <div style="background:rgba(90,84,196,0.07);border:0.5px solid rgba(90,84,196,0.2);border-radius:9px;
              padding:14px 18px;margin-bottom:20px;font-size:12px;color:#71717A;line-height:1.6">
           <span style="color:#9490e8;font-weight:500">Early access:</span>
-          Pro is currently free while we build the full platform. Enter your email to unlock it now.
-          You will be notified when Pro becomes a paid feature, with a discount for early members.
+          Pro is currently available by invitation. Enter your details and access code to unlock.
         </div>
         """, unsafe_allow_html=True)
 
-        # Pro gate form
-        st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
-        col_pe1, col_pe2, col_pe3 = st.columns([2, 2, 1])
-        with col_pe1:
-            st.markdown('<div style="font-size:11px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Email address</div>', unsafe_allow_html=True)
-            pro_email = st.text_input("pro_email", placeholder="you@example.com", label_visibility="collapsed")
-        with col_pe2:
-            st.markdown('<div style="font-size:11px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Full name</div>', unsafe_allow_html=True)
-            pro_name = st.text_input("pro_name", placeholder="Arturo Maldonado", label_visibility="collapsed")
-        with col_pe3:
-            st.markdown('<div style="font-size:11px;color:#3f3f46;margin-bottom:6px">&nbsp;</div>', unsafe_allow_html=True)
-            if st.button("Unlock Pro →"):
-                pro_email_valid = re.match(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$', pro_email or "")
-                if not pro_name.strip():
-                    st.error("Please enter your name.")
-                elif not pro_email_valid:
-                    st.error("Please enter a valid email address.")
-                else:
-                    save_lead("pro_leads", {
-                        "Name":  pro_name,
-                        "Email": pro_email,
-                    })
-                    st.session_state.pro_unlocked = True
-                    st.session_state.pro_email = pro_email
-                    st.session_state.inputs.update({"pro_name": pro_name, "pro_email": pro_email})
-                    st.rerun()
+        # Pro gate form — step 1: email + name
+        if not st.session_state.pro_gate_open:
+            st.markdown("<div style='margin-top:16px'></div>", unsafe_allow_html=True)
+            col_pe1, col_pe2, col_pe3 = st.columns([2, 2, 1])
+            with col_pe1:
+                st.markdown('<div style="font-size:11px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Email address</div>', unsafe_allow_html=True)
+                pro_email = st.text_input("pro_email", placeholder="you@example.com", label_visibility="collapsed")
+            with col_pe2:
+                st.markdown('<div style="font-size:11px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Full name</div>', unsafe_allow_html=True)
+                pro_name = st.text_input("pro_name", placeholder="Arturo Maldonado", label_visibility="collapsed")
+            with col_pe3:
+                st.markdown('<div style="font-size:11px;color:#3f3f46;margin-bottom:6px">&nbsp;</div>', unsafe_allow_html=True)
+                if st.button("Continue →"):
+                    pro_email_valid = re.match(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$', pro_email or "")
+                    if not pro_name.strip():
+                        st.error("Please enter your name.")
+                    elif not pro_email_valid:
+                        st.error("Please enter a valid email address.")
+                    else:
+                        st.session_state.inputs.update({"pro_name": pro_name, "pro_email": pro_email})
+                        st.session_state.pro_gate_open = True
+                        st.rerun()
+
+        # Step 2: access code
+        else:
+            pro_name  = st.session_state.inputs.get("pro_name", "")
+            pro_email = st.session_state.inputs.get("pro_email", "")
+
+            st.markdown(f"""
+            <div style="background:#0f0f16;border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;
+                 padding:16px 20px;margin-bottom:16px;font-size:13px;color:#71717A">
+              Registered as <strong style="color:#F2F2F2">{pro_name}</strong> · {pro_email}
+            </div>
+            """, unsafe_allow_html=True)
+
+            col_code1, col_code2 = st.columns([3, 1])
+            with col_code1:
+                st.markdown('<div style="font-size:11px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Access code</div>', unsafe_allow_html=True)
+                access_code = st.text_input("access_code", placeholder="Enter your Pro access code", label_visibility="collapsed")
+            with col_code2:
+                st.markdown('<div style="font-size:11px;color:#3f3f46;margin-bottom:6px">&nbsp;</div>', unsafe_allow_html=True)
+                if st.button("Unlock Pro →"):
+                    PRO_CODE = st.secrets.get("PRO_ACCESS_CODE", "FREEDOM2025")
+                    if access_code.strip().upper() == PRO_CODE.upper():
+                        save_lead("pro_leads", {
+                            "Name":  pro_name,
+                            "Email": pro_email,
+                        })
+                        st.session_state.pro_unlocked = True
+                        st.session_state.pro_email = pro_email
+                        st.rerun()
+                    else:
+                        st.error("Invalid access code. Contact us at thefreedomprojectfi@gmail.com to get yours.")
+
+            if st.button("← Back"):
+                st.session_state.pro_gate_open = False
+                st.rerun()
 
     else:
         # ── PRO FEATURES UNLOCKED ──
@@ -1352,8 +1382,13 @@ elif st.session_state.step == 4:
                 if capital <= 0: break
             return history
 
-        crash_pct  = st.slider("Market crash magnitude", 10, 50, 30, 5, format="-%d%%") / 100
-        crash_year = st.slider("Crash occurs in retirement year", 1, min(10, yr), 1)
+        col_sor1, col_sor2 = st.columns(2)
+        with col_sor1:
+            st.markdown('<div style="font-size:11px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Portfolio drop</div>', unsafe_allow_html=True)
+            crash_pct = st.slider("crash", 10, 50, 30, 5, format="-%d%%", label_visibility="collapsed") / 100
+        with col_sor2:
+            st.markdown('<div style="font-size:11px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Crash in retirement year</div>', unsafe_allow_html=True)
+        crash_year = st.slider("crash_year", 1, min(10, yr), 1, label_visibility="collapsed")
 
         h_normal = simulate(mi, mc_inc, ya, yr, ar)[0]
         h_crash  = simulate_with_crash(mi, mc_inc, ya, yr, ar, crash_pct, crash_year)
@@ -1474,7 +1509,7 @@ No generic advice. Tone: direct, expert, honest. Max 300 words total."""
                         ai_text = response.json()["content"][0]["text"]
                         st.session_state["ai_insights"] = ai_text
                     else:
-                        st.session_state["ai_insights"] = "Unable to generate insights at this time."
+                        st.session_state["ai_insights"] = f"Error {response.status_code}: {response.text[:200]}"
                 except Exception as e:
                     st.session_state["ai_insights"] = "Unable to connect to analysis service."
 
