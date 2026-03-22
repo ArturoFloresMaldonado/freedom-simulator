@@ -1236,6 +1236,127 @@ elif st.session_state.step == 4:
         </div>
         """, unsafe_allow_html=True)
 
+        # ── QUICK EDIT PANEL ──
+        st.markdown("""
+        <div style="background:#0f0f16;border:0.5px solid rgba(90,84,196,0.2);border-radius:14px;padding:24px 28px;margin-bottom:28px">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;margin-bottom:4px">⚡ Quick edit</div>
+          <div style="font-size:12px;color:#52525B;margin-bottom:20px">Adjust your inputs and recalculate instantly without going back through the wizard.</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        qe1, qe2, qe3, qe4, qe5 = st.columns(5)
+        with qe1:
+            st.markdown('<div style="font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Monthly invest (€)</div>', unsafe_allow_html=True)
+            new_mi = st.number_input("qe_mi", min_value=0, max_value=50000, value=int(mi), step=50, label_visibility="collapsed")
+        with qe2:
+            st.markdown('<div style="font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Retirement income (€)</div>', unsafe_allow_html=True)
+            new_mc = st.number_input("qe_mc", min_value=500, max_value=20000, value=int(mc_inc), step=100, label_visibility="collapsed")
+        with qe3:
+            st.markdown('<div style="font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Years accumulation</div>', unsafe_allow_html=True)
+            new_ya = st.number_input("qe_ya", min_value=5, max_value=40, value=int(ya), step=1, label_visibility="collapsed")
+        with qe4:
+            st.markdown('<div style="font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Years retirement</div>', unsafe_allow_html=True)
+            new_yr = st.number_input("qe_yr", min_value=5, max_value=40, value=int(yr), step=1, label_visibility="collapsed")
+        with qe5:
+            st.markdown('<div style="font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Profile</div>', unsafe_allow_html=True)
+            new_profile = st.selectbox("qe_profile", ["Conservative", "Balanced", "Aggressive"],
+                                       index=["Conservative","Balanced","Aggressive"].index(inp.get("profile","Balanced")),
+                                       label_visibility="collapsed")
+
+        col_qe_btn1, col_qe_btn2 = st.columns([1, 4])
+        with col_qe_btn1:
+            if st.button("↻ Recalculate"):
+                st.session_state.inputs.update({
+                    "monthly_investment": new_mi,
+                    "monthly_income":     new_mc,
+                    "years_accumulation": new_ya,
+                    "years_retirement":   new_yr,
+                    "profile":            new_profile,
+                    "ann_return":         {"Conservative":0.04,"Balanced":0.06,"Aggressive":0.08}[new_profile],
+                    "freedom_number":     freedom_number(new_mc),
+                })
+                st.rerun()
+
+        # ── SCENARIOS ──
+        if "saved_scenarios" not in st.session_state:
+            st.session_state.saved_scenarios = []
+
+        # Save scenario button
+        scenario_name = st.text_input("scenario_name", placeholder="Name this scenario (e.g. 'Aggressive plan')",
+                                       label_visibility="collapsed")
+        col_sv1, col_sv2 = st.columns([1, 5])
+        with col_sv1:
+            if st.button("💾 Save scenario"):
+                if scenario_name.strip():
+                    new_scenario = {
+                        "name":    scenario_name.strip(),
+                        "mi":      mi, "mc":    mc_inc, "ya":  ya,
+                        "yr":      yr, "profile": inp.get("profile","Balanced"),
+                        "score":   int(score), "fn":    int(fn),
+                        "fi_age":  fi_age, "ar":   ar,
+                    }
+                    # avoid duplicates
+                    st.session_state.saved_scenarios = [
+                        s for s in st.session_state.saved_scenarios if s["name"] != scenario_name.strip()
+                    ]
+                    st.session_state.saved_scenarios.append(new_scenario)
+                    st.success(f"Scenario '{scenario_name}' saved.")
+
+        # Saved scenarios table
+        if st.session_state.saved_scenarios:
+            st.markdown(divider("16px 0"), unsafe_allow_html=True)
+            st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:15px;font-weight:700;margin-bottom:12px">Saved scenarios</div>', unsafe_allow_html=True)
+
+            rows_html = ""
+            for s in st.session_state.saved_scenarios:
+                score_c = "#7F77DD" if s["score"] >= 70 else "#EF9F27" if s["score"] >= 40 else "#E24B4A"
+                rows_html += f"""
+                <tr style="border-bottom:0.5px solid rgba(255,255,255,0.05)">
+                  <td style="padding:10px 12px;font-size:13px;color:#F2F2F2;font-weight:500">{s['name']}</td>
+                  <td style="padding:10px 12px;font-size:13px;color:#52525B">€{s['mi']:,}/mo · {int(s['ar']*100)}%</td>
+                  <td style="padding:10px 12px;font-size:13px;color:#F2F2F2">€{s['fn']:,}</td>
+                  <td style="padding:10px 12px;font-size:13px;color:{score_c};font-weight:600">{s['score']}/100</td>
+                  <td style="padding:10px 12px;font-size:13px;color:#71717A">{'Age '+str(s['fi_age']) if s['fi_age'] else '—'}</td>
+                </tr>"""
+
+            st.markdown(f"""
+            <table style="width:100%;border-collapse:collapse;background:#0f0f16;border-radius:10px;overflow:hidden;border:0.5px solid rgba(255,255,255,0.07)">
+              <thead>
+                <tr style="background:#141420;border-bottom:0.5px solid rgba(255,255,255,0.08)">
+                  <th style="padding:10px 12px;font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;text-align:left;font-weight:500">Scenario</th>
+                  <th style="padding:10px 12px;font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;text-align:left;font-weight:500">Inputs</th>
+                  <th style="padding:10px 12px;font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;text-align:left;font-weight:500">Freedom Number</th>
+                  <th style="padding:10px 12px;font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;text-align:left;font-weight:500">Score</th>
+                  <th style="padding:10px 12px;font-size:10px;color:#3f3f46;letter-spacing:1px;text-transform:uppercase;text-align:left;font-weight:500">FI Age</th>
+                </tr>
+              </thead>
+              <tbody>{rows_html}</tbody>
+            </table>
+            """, unsafe_allow_html=True)
+
+            # Load scenario buttons
+            st.markdown("<div style='margin-top:10px;display:flex;gap:8px;flex-wrap:wrap'>", unsafe_allow_html=True)
+            cols_load = st.columns(min(len(st.session_state.saved_scenarios), 5))
+            for i, s in enumerate(st.session_state.saved_scenarios):
+                with cols_load[i % len(cols_load)]:
+                    if st.button(f"Load '{s['name']}'", key=f"load_{i}"):
+                        st.session_state.inputs.update({
+                            "monthly_investment": s["mi"],
+                            "monthly_income":     s["mc"],
+                            "years_accumulation": s["ya"],
+                            "years_retirement":   s["yr"],
+                            "profile":            s["profile"],
+                            "ann_return":         s["ar"],
+                            "freedom_number":     freedom_number(s["mc"]),
+                        })
+                        st.rerun()
+
+            if st.button("🗑 Clear all scenarios"):
+                st.session_state.saved_scenarios = []
+                st.rerun()
+
+        st.markdown(divider("24px 0"), unsafe_allow_html=True)
+
         # Monte Carlo
         st.markdown('<div style="font-family:\'Space Grotesk\',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px">📊 Monte Carlo simulation</div>', unsafe_allow_html=True)
         st.markdown("<div style='font-size:13px;color:#71717A;margin-bottom:14px'>1,000 simulations with randomised annual returns to estimate the real probability of your plan succeeding.</div>", unsafe_allow_html=True)
