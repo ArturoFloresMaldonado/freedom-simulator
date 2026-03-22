@@ -986,13 +986,15 @@ elif st.session_state.step == 4:
                     st.error("Please enter a valid email address.")
                 else:
                     st.session_state.inputs.update({"name": name, "email": email, "country": country})
+                    print(f"DEBUG free_leads: email={email} country={country} score={score} fn={fn} profile={inp.get('profile','')}")
                     save_lead("free_leads", {
                         "Email":          email,
                         "Country":        country,
                         "Score":          round(score, 1),
-                        "Freedom number": int(fn),
+                        "Freedom Number": int(fn),
                         "Profile":        inp.get("profile", ""),
                     })
+                    print(f"DEBUG save_lead called")
                     st.session_state.pdf_unlocked = True
                     st.rerun()
 
