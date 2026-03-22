@@ -13,8 +13,8 @@ from datetime import datetime
 # AIRTABLE CONFIG
 # ─────────────────────────────────────────────
 
-AIRTABLE_TOKEN   = "pattia1mqTxC9sA8H.6db604884c78394577a0f20f84df1557490122a0cab25344e9d7477d354b58cd"
-AIRTABLE_BASE_ID = "app6WihCdXQq2IMYk"
+AIRTABLE_TOKEN   = st.secrets.get("AIRTABLE_TOKEN", "")
+AIRTABLE_BASE_ID = st.secrets.get("AIRTABLE_BASE_ID", "")
 AIRTABLE_URL     = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}"
 
 def save_lead(table, fields):
