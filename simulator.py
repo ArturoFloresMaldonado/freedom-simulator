@@ -31,21 +31,6 @@ def save_lead(table, fields):
     except Exception:
         pass
 
-def save_lead_debug(table, fields):
-    try:
-        response = requests.post(
-            f"{AIRTABLE_URL}/{table}",
-            headers={
-                "Authorization": f"Bearer {AIRTABLE_TOKEN}",
-                "Content-Type": "application/json"
-            },
-            json={"fields": fields},
-            timeout=5
-        )
-        return f"{response.status_code}: {response.text[:400]}"
-    except Exception as e:
-        return f"Error: {e}"
-
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak, Image as RLImage
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.pagesizes import A4
@@ -1001,14 +986,13 @@ elif st.session_state.step == 4:
                     st.error("Please enter a valid email address.")
                 else:
                     st.session_state.inputs.update({"name": name, "email": email, "country": country})
-                    result = save_lead_debug("free_leads", {
+                    save_lead("free_leads", {
                         "Email":          email,
                         "Country":        country,
                         "Score":          round(score, 1),
-                        "Freedom Number": int(fn),
+                        "Freedom number": int(fn),
                         "Profile":        inp.get("profile", ""),
                     })
-                    st.session_state["free_debug"] = result
                     st.session_state.pdf_unlocked = True
                     st.rerun()
 
@@ -1016,9 +1000,6 @@ elif st.session_state.step == 4:
         # ── PDF READY ──
         inp2 = st.session_state.inputs
         first_name = inp2.get("name", "").split()[0] if inp2.get("name") else "there"
-
-        if "free_debug" in st.session_state:
-            st.code(st.session_state["free_debug"])
 
         st.markdown(f"""
         <div style="background:rgba(90,84,196,0.07);border:0.5px solid rgba(90,84,196,0.25);border-radius:14px;padding:28px 32px;
