@@ -19,7 +19,7 @@ AIRTABLE_URL     = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}"
 
 def save_lead(table, fields):
     try:
-        response = requests.post(
+        requests.post(
             f"{AIRTABLE_URL}/{table}",
             headers={
                 "Authorization": f"Bearer {AIRTABLE_TOKEN}",
@@ -28,9 +28,8 @@ def save_lead(table, fields):
             json={"fields": fields},
             timeout=5
         )
-        st.session_state["airtable_debug"] = f"[{table}] {response.status_code}: {response.text[:300]}"
-    except Exception as e:
-        st.session_state["airtable_debug"] = f"Connection error: {e}"
+    except Exception:
+        pass
 
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak, Image as RLImage
 from reportlab.lib.styles import ParagraphStyle
@@ -762,9 +761,6 @@ elif st.session_state.step == 3:
 
 elif st.session_state.step == 4:
 
-    if "airtable_debug" in st.session_state:
-        st.code(st.session_state["airtable_debug"])
-
     inp = st.session_state.inputs
     mi, mc_inc = inp["monthly_investment"], inp["monthly_income"]
     ya, yr     = inp["years_accumulation"],  inp["years_retirement"]
@@ -991,7 +987,6 @@ elif st.session_state.step == 4:
                 else:
                     st.session_state.inputs.update({"name": name, "email": email, "country": country})
                     save_lead("free_leads", {
-                        "Name":           name,
                         "Email":          email,
                         "Country":        country,
                         "Score":          round(score, 1),
